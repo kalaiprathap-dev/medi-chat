@@ -9,16 +9,13 @@ langchain-community
 langchain-core
 langchain-groq
 langchain-text-splitters
-langchain_core.prompts
 langchain-classic
-langchain_core.retrievers
 
 # Vectorstore
 # chromadb
 pinecone
 
 # Embeddings
-sentence-transformers
 # langchain-google-generative-ai
 langchain-google-genai
 
