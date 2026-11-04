@@ -2,35 +2,30 @@ from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
 from modules.llm import get_llm_chain
 from modules.query_handlers import query_chain
+from modules.load_vectorstore import hybrid_search
 from langchain_core.documents import Document
-#from langchain.schema import BaseRetriever
 from langchain_core.retrievers import BaseRetriever
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from pinecone import Pinecone
 from pydantic import Field
 from typing import List, Optional
 from logger import logger
-import os
 
-router=APIRouter()
+router = APIRouter()
+
 
 @router.post("/ask/")
 async def ask_question(question: str = Form(...)):
     try:
         logger.info(f"user query: {question}")
 
-        # Embed model + Pinecone setup
-        pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
-        index = pc.Index(os.environ["PINECONE_INDEX_NAME"])
-        embed_model = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001",output_dimensionality=768)
-        embedded_query = embed_model.embed_query(question)
-        res = index.query(vector=embedded_query, top_k=3, include_metadata=True)
+        # Hybrid search: meaning (dense) + keywords (sparse)
+        matches = hybrid_search(question, top_k=5, alpha=0.6)
 
         docs = [
             Document(
-                page_content=match["metadata"].get("text", ""),
-                metadata=match["metadata"]
-            ) for match in res["matches"]
+                page_content=m["text"],
+                metadata={"source": m["source"], "page": m["page"], "score": m["score"]},
+            )
+            for m in matches
         ]
 
         class SimpleRetriever(BaseRetriever):
